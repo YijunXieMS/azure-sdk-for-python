@@ -11,9 +11,9 @@ import logging
 import six
 
 from uamqp import BatchMessage, Message, types, constants  # type: ignore
-from uamqp.message import MessageHeader, MessageProperties  # type: ignore
+from uamqp.message import MessageHeader  # type: ignore
 
-from azure.core.settings import settings
+from azure.core.settings import settings # type: ignore
 
 from azure.eventhub.error import EventDataError
 

@@ -5,9 +5,9 @@
 from azure.core.tracing.decorator import distributed_trace
 
 from ._shared import KeyVaultClientBase
-from ._shared.exceptions import error_map
+from ._shared.exceptions import error_map as _error_map
 from .crypto import CryptographyClient
-from .models import Key, KeyBase, DeletedKey
+from .models import Key, KeyProperties, DeletedKey
 
 try:
     from typing import TYPE_CHECKING
@@ -19,12 +19,13 @@ if TYPE_CHECKING:
     from typing import Any, Dict, List, Optional, Union
     from datetime import datetime
     from azure.core.paging import ItemPaged
+    from .models import JsonWebKey
 
 
 class KeyClient(KeyVaultClientBase):
     """A high-level interface for managing a vault's keys.
 
-    :param str vault_url: URL of the vault the client will access
+    :param str vault_endpoint: URL of the vault the client will access
     :param credential: An object which can provide an access token for the vault, such as a credential from
         :mod:`azure.identity`
 
@@ -106,7 +107,7 @@ class KeyClient(KeyVaultClientBase):
             attributes = None
 
         bundle = self._client.create_key(
-            vault_base_url=self.vault_url,
+            vault_base_url=self.vault_endpoint,
             key_name=name,
             kty=key_type,
             key_size=size,
@@ -244,7 +245,7 @@ class KeyClient(KeyVaultClientBase):
                 :caption: Delete a key
                 :dedent: 8
         """
-        bundle = self._client.delete_key(self.vault_url, name, error_map=error_map, **kwargs)
+        bundle = self._client.delete_key(self.vault_endpoint, name, error_map=_error_map, **kwargs)
         return DeletedKey._from_deleted_key_bundle(bundle)
 
     @distributed_trace
@@ -268,7 +269,9 @@ class KeyClient(KeyVaultClientBase):
                 :caption: Get a key
                 :dedent: 8
         """
-        bundle = self._client.get_key(self.vault_url, name, key_version=version or "", error_map=error_map, **kwargs)
+        bundle = self._client.get_key(
+            self.vault_endpoint, name, key_version=version or "", error_map=_error_map, **kwargs
+        )
         return Key._from_key_bundle(bundle)
 
     @distributed_trace
@@ -293,7 +296,7 @@ class KeyClient(KeyVaultClientBase):
                 :dedent: 8
         """
         # TODO: which exception is raised when soft-delete is not enabled
-        bundle = self._client.get_deleted_key(self.vault_url, name, error_map=error_map, **kwargs)
+        bundle = self._client.get_deleted_key(self.vault_endpoint, name, error_map=_error_map, **kwargs)
         return DeletedKey._from_deleted_key_bundle(bundle)
 
     @distributed_trace
@@ -315,7 +318,7 @@ class KeyClient(KeyVaultClientBase):
         """
         max_page_size = kwargs.get("max_page_size", None)
         return self._client.get_deleted_keys(
-            self._vault_url,
+            self._vault_endpoint,
             maxresults=max_page_size,
             cls=lambda objs: [DeletedKey._from_deleted_key_item(x) for x in objs],
             **kwargs
@@ -323,11 +326,11 @@ class KeyClient(KeyVaultClientBase):
 
     @distributed_trace
     def list_keys(self, **kwargs):
-        # type: (**Any) -> ItemPaged[KeyBase]
+        # type: (**Any) -> ItemPaged[KeyProperties]
         """List identifiers, attributes, and tags of all keys in the vault. Requires the keys/list permission.
 
         :returns: An iterator of keys without their cryptographic material or version information
-        :rtype: ~azure.core.paging.ItemPaged[~azure.keyvault.keys.models.KeyBase]
+        :rtype: ~azure.core.paging.ItemPaged[~azure.keyvault.keys.models.KeyProperties]
 
         Example:
             .. literalinclude:: ../tests/test_samples_keys.py
@@ -339,20 +342,20 @@ class KeyClient(KeyVaultClientBase):
         """
         max_page_size = kwargs.get("max_page_size", None)
         return self._client.get_keys(
-            self._vault_url,
+            self._vault_endpoint,
             maxresults=max_page_size,
-            cls=lambda objs: [KeyBase._from_key_item(x) for x in objs],
+            cls=lambda objs: [KeyProperties._from_key_item(x) for x in objs],
             **kwargs
         )
 
     @distributed_trace
     def list_key_versions(self, name, **kwargs):
-        # type: (str, **Any) -> ItemPaged[KeyBase]
+        # type: (str, **Any) -> ItemPaged[KeyProperties]
         """List the identifiers, attributes, and tags of a key's versions. Requires the keys/list permission.
 
         :param str name: The name of the key
         :returns: An iterator of keys without their cryptographic material
-        :rtype: ~azure.core.paging.ItemPaged[~azure.keyvault.keys.models.KeyBase]
+        :rtype: ~azure.core.paging.ItemPaged[~azure.keyvault.keys.models.KeyProperties]
 
         Example:
             .. literalinclude:: ../tests/test_samples_keys.py
@@ -364,10 +367,10 @@ class KeyClient(KeyVaultClientBase):
         """
         max_page_size = kwargs.get("max_page_size", None)
         return self._client.get_key_versions(
-            self._vault_url,
+            self._vault_endpoint,
             name,
             maxresults=max_page_size,
-            cls=lambda objs: [KeyBase._from_key_item(x) for x in objs],
+            cls=lambda objs: [KeyProperties._from_key_item(x) for x in objs],
             **kwargs
         )
 
@@ -391,7 +394,7 @@ class KeyClient(KeyVaultClientBase):
                 key_client.purge_deleted_key("key-name")
 
         """
-        self._client.purge_deleted_key(vault_base_url=self.vault_url, key_name=name, **kwargs)
+        self._client.purge_deleted_key(vault_base_url=self.vault_endpoint, key_name=name, **kwargs)
 
     @distributed_trace
     def recover_deleted_key(self, name, **kwargs):
@@ -415,11 +418,11 @@ class KeyClient(KeyVaultClientBase):
                 :caption: Recover a deleted key
                 :dedent: 8
         """
-        bundle = self._client.recover_deleted_key(vault_base_url=self.vault_url, key_name=name, **kwargs)
+        bundle = self._client.recover_deleted_key(vault_base_url=self.vault_endpoint, key_name=name, **kwargs)
         return Key._from_key_bundle(bundle)
 
     @distributed_trace
-    def update_key(
+    def update_key_properties(
         self,
         name,  # type: str
         version=None,  # type: Optional[str]
@@ -461,13 +464,13 @@ class KeyClient(KeyVaultClientBase):
         else:
             attributes = None
         bundle = self._client.update_key(
-            self.vault_url,
+            self.vault_endpoint,
             name,
             key_version=version or "",
             key_ops=key_operations,
             tags=tags,
             key_attributes=attributes,
-            error_map=error_map,
+            error_map=_error_map,
             **kwargs
         )
         return Key._from_key_bundle(bundle)
@@ -496,7 +499,7 @@ class KeyClient(KeyVaultClientBase):
                 :caption: Get a key backup
                 :dedent: 8
         """
-        backup_result = self._client.backup_key(self.vault_url, name, error_map=error_map, **kwargs)
+        backup_result = self._client.backup_key(self.vault_endpoint, name, error_map=_error_map, **kwargs)
         return backup_result.value
 
     @distributed_trace
@@ -523,14 +526,14 @@ class KeyClient(KeyVaultClientBase):
                 :caption: Restore a key backup
                 :dedent: 8
         """
-        bundle = self._client.restore_key(self.vault_url, backup, error_map=error_map, **kwargs)
+        bundle = self._client.restore_key(self.vault_endpoint, backup, error_map=_error_map, **kwargs)
         return Key._from_key_bundle(bundle)
 
     @distributed_trace
     def import_key(
         self,
         name,  # type: str
-        key,  # type: List[str]
+        key,  # type: JsonWebKey
         hsm=None,  # type: Optional[bool]
         enabled=None,  # type: Optional[bool]
         not_before=None,  # type: Optional[datetime]
@@ -560,6 +563,12 @@ class KeyClient(KeyVaultClientBase):
         else:
             attributes = None
         bundle = self._client.import_key(
-            self.vault_url, name, key=key, hsm=hsm, key_attributes=attributes, tags=tags, **kwargs
+            self.vault_endpoint,
+            name,
+            key=key._to_generated_model(),
+            hsm=hsm,
+            key_attributes=attributes,
+            tags=tags,
+            **kwargs
         )
         return Key._from_key_bundle(bundle)

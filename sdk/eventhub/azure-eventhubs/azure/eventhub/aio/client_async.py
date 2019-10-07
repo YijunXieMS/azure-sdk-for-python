@@ -11,10 +11,7 @@ import asyncio
 from typing import Any, List, Dict, Union, TYPE_CHECKING
 
 from uamqp import authentication, constants  # type: ignore
-from uamqp import (
-    Message,
-    AMQPClientAsync,
-)  # type: ignore
+from uamqp import Message, AMQPClientAsync  # type: ignore
 
 from azure.eventhub.common import parse_sas_token, EventPosition, \
     EventHubSharedKeyCredential, EventHubSASTokenCredential
@@ -134,7 +131,7 @@ class EventHubClient(EventHubClientAbstract):
                 retried_times += 1
             finally:
                 await mgmt_client.close_async()
-        log.info("%r returns an exception %r", self._container_id, last_exception)
+        log.info("%r returns an exception %r", self._container_id, last_exception)  # pylint:disable=specify-parameter-names-in-call
         raise last_exception
 
     async def get_properties(self):
@@ -226,7 +223,6 @@ class EventHubClient(EventHubClientAbstract):
         :type owner_level: int
         :param prefetch: The message prefetch count of the consumer. Default is 300.
         :type prefetch: int
-        :type track_last_enqueued_event_properties: bool
         :param track_last_enqueued_event_properties: Indicates whether or not the consumer should request information
          on the last enqueued event on its associated partition, and track that information as events are received.
          When information about the partition's last enqueued event is being tracked, each event received from the
@@ -234,6 +230,7 @@ class EventHubClient(EventHubClientAbstract):
          network bandwidth consumption that is generally a favorable trade-off when considered against periodically
          making requests for partition properties using the Event Hub client.
          It is set to `False` by default.
+        :type track_last_enqueued_event_properties: bool
         :param loop: An event loop. If not specified the default event loop will be used.
         :rtype: ~azure.eventhub.aio.consumer_async.EventHubConsumer
 

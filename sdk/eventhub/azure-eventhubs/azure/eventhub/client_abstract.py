@@ -12,7 +12,7 @@ import time
 from abc import abstractmethod
 from typing import Union, Any, TYPE_CHECKING
 
-from uamqp import types
+from uamqp import types  # type: ignore
 from azure.eventhub import __version__
 from azure.eventhub.configuration import _Configuration
 from .common import EventHubSharedKeyCredential, EventHubSASTokenCredential, _Address
@@ -165,7 +165,9 @@ class EventHubClientAbstract(object):  # pylint:disable=too-many-instance-attrib
         product = "azure-eventhub"
         properties[types.AMQPSymbol("product")] = product
         properties[types.AMQPSymbol("version")] = __version__
-        framework = "Python {}.{}.{}, {}".format(*sys.version_info[0:3], platform.python_implementation())
+        framework = "Python {}.{}.{}, {}".format(
+            sys.version_info[0], sys.version_info[1], sys.version_info[2], platform.python_implementation()
+        )
         properties[types.AMQPSymbol("framework")] = framework
         platform_str = platform.platform()
         properties[types.AMQPSymbol("platform")] = platform_str

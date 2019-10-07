@@ -8,12 +8,11 @@ import uuid
 import logging
 import time
 from typing import List
+from distutils.version import StrictVersion
 
 import uamqp  # type: ignore
 from uamqp import types, errors, utils  # type: ignore
 from uamqp import ReceiveClient, Source  # type: ignore
-import uamqp
-from distutils.version import StrictVersion
 
 from azure.eventhub.common import EventData, EventPosition
 from azure.eventhub.error import _error_handler
@@ -58,7 +57,6 @@ class EventHubConsumer(ConsumerProducerMixin):  # pylint:disable=too-many-instan
         :param owner_level: The priority of the exclusive consumer. An exclusive
          consumer will be created if owner_level is set.
         :type owner_level: int
-        :type track_last_enqueued_event_properties: bool
         :param track_last_enqueued_event_properties: Indicates whether or not the consumer should request information
          on the last enqueued event on its associated partition, and track that information as events are received.
          When information about the partition's last enqueued event is being tracked, each event received from the
@@ -66,6 +64,7 @@ class EventHubConsumer(ConsumerProducerMixin):  # pylint:disable=too-many-instan
          network bandwidth consumption that is generally a favorable trade-off when considered against periodically
          making requests for partition properties using the Event Hub client.
          It is set to `False` by default.
+        :type track_last_enqueued_event_properties: bool
         """
         event_position = kwargs.get("event_position", None)
         prefetch = kwargs.get("prefetch", 300)
@@ -130,11 +129,11 @@ class EventHubConsumer(ConsumerProducerMixin):  # pylint:disable=too-many-instan
         if self._offset is not None:
             source.set_filter(self._offset._selector())  # pylint:disable=protected-access
 
-        if StrictVersion(uamqp.__version__) < StrictVersion("1.2.3"):  # backward compatible until uamqp 1.2.3 is released
+        if StrictVersion(uamqp.__version__) < StrictVersion("1.2.3"):  # backward compatible until uamqp 1.2.3 released
             desired_capabilities = {}
         elif self._track_last_enqueued_event_properties:
-                symbol_array = [types.AMQPSymbol(self._receiver_runtime_metric_symbol)]
-                desired_capabilities = {"desired_capabilities": utils.data_factory(types.AMQPArray(symbol_array))}
+            symbol_array = [types.AMQPSymbol(self._receiver_runtime_metric_symbol)]
+            desired_capabilities = {"desired_capabilities": utils.data_factory(types.AMQPArray(symbol_array))}
         else:
             desired_capabilities = {"desired_capabilities": None}
 
@@ -181,7 +180,7 @@ class EventHubConsumer(ConsumerProducerMixin):  # pylint:disable=too-many-instan
         if data_batch:
             self._offset = EventPosition(data_batch[-1].offset)
 
-        if self._track_last_enqueued_event_properties and len(data_batch):
+        if self._track_last_enqueued_event_properties and data_batch:
             self._last_enqueued_event_properties = data_batch[-1]._get_last_enqueued_event_properties()  # pylint:disable=protected-access
 
         return data_batch
@@ -253,7 +252,7 @@ class EventHubConsumer(ConsumerProducerMixin):  # pylint:disable=too-many-instan
 
         return self._receive_with_retry(timeout=timeout, max_batch_size=max_batch_size)
 
-    def close(self):
+    def close(self):  # pylint:disable=useless-super-delegation
         # type:() -> None
         """
         Close down the handler. If the handler has already closed,

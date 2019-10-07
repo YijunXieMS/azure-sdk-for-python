@@ -5,14 +5,14 @@
 import uuid
 import asyncio
 import logging
-from typing import Iterable, Union
+from typing import Iterable, Union, Type
 import time
 
 from uamqp import types, constants, errors  # type: ignore
 from uamqp import SendClientAsync  # type: ignore
 
-from azure.core.tracing import SpanKind
-from azure.core.settings import settings
+from azure.core.tracing import SpanKind, AbstractSpan  # type: ignore
+from azure.core.settings import settings  # type: ignore
 
 from azure.eventhub.common import EventData, EventDataBatch
 from azure.eventhub.error import _error_handler, OperationTimeoutError, EventDataError
@@ -113,7 +113,7 @@ class EventHubProducer(ConsumerProducerMixin):  # pylint: disable=too-many-insta
                     error = OperationTimeoutError("send operation timed out")
                 log.info("%r send operation timed out. (%r)", self._name, error)
                 raise error
-            self._handler._msg_timeout = remaining_time  # pylint: disable=protected-access
+            self._handler._msg_timeout = remaining_time * 1000  # pylint: disable=protected-access
             self._handler.queue_message(*self._unsent_events)
             await self._handler.wait_async()
             self._unsent_events = self._handler.pending_messages

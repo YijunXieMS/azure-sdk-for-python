@@ -7,17 +7,17 @@ from typing import Any, AsyncIterable, Optional, Dict, List, Union
 
 from azure.core.tracing.decorator import distributed_trace
 from azure.core.tracing.decorator_async import distributed_trace_async
-from azure.keyvault.keys.models import DeletedKey, JsonWebKey, Key, KeyBase
+from azure.keyvault.keys.models import DeletedKey, JsonWebKey, Key, KeyProperties
 from azure.keyvault.keys._shared import AsyncKeyVaultClientBase
 
-from .._shared.exceptions import error_map
+from .._shared.exceptions import error_map as _error_map
 from ..crypto.aio import CryptographyClient
 
 
 class KeyClient(AsyncKeyVaultClientBase):
     """A high-level asynchronous interface for managing a vault's keys.
 
-    :param str vault_url: URL of the vault the client will access
+    :param str vault_endpoint: URL of the vault the client will access
     :param credential: An object which can provide an access token for the vault, such as a credential from
         :mod:`azure.identity.aio`
 
@@ -97,7 +97,7 @@ class KeyClient(AsyncKeyVaultClientBase):
             attributes = None
 
         bundle = await self._client.create_key(
-            self.vault_url,
+            self.vault_endpoint,
             name,
             key_type,
             size,
@@ -231,7 +231,7 @@ class KeyClient(AsyncKeyVaultClientBase):
                 :caption: Delete a key
                 :dedent: 8
         """
-        bundle = await self._client.delete_key(self.vault_url, name, error_map=error_map, **kwargs)
+        bundle = await self._client.delete_key(self.vault_endpoint, name, error_map=_error_map, **kwargs)
         return DeletedKey._from_deleted_key_bundle(bundle)
 
     @distributed_trace_async
@@ -257,7 +257,7 @@ class KeyClient(AsyncKeyVaultClientBase):
         if version is None:
             version = ""
 
-        bundle = await self._client.get_key(self.vault_url, name, version, error_map=error_map, **kwargs)
+        bundle = await self._client.get_key(self.vault_endpoint, name, version, error_map=_error_map, **kwargs)
         return Key._from_key_bundle(bundle)
 
     @distributed_trace_async
@@ -280,7 +280,7 @@ class KeyClient(AsyncKeyVaultClientBase):
                 :caption: Get a deleted key
                 :dedent: 8
         """
-        bundle = await self._client.get_deleted_key(self.vault_url, name, error_map=error_map, **kwargs)
+        bundle = await self._client.get_deleted_key(self.vault_endpoint, name, error_map=_error_map, **kwargs)
         return DeletedKey._from_deleted_key_bundle(bundle)
 
     @distributed_trace
@@ -301,18 +301,18 @@ class KeyClient(AsyncKeyVaultClientBase):
         """
         max_results = kwargs.get("max_page_size")
         return self._client.get_deleted_keys(
-            self.vault_url,
+            self.vault_endpoint,
             maxresults=max_results,
             cls=lambda objs: [DeletedKey._from_deleted_key_item(x) for x in objs],
             **kwargs,
         )
 
     @distributed_trace
-    def list_keys(self, **kwargs: "**Any") -> AsyncIterable[KeyBase]:
+    def list_keys(self, **kwargs: "**Any") -> AsyncIterable[KeyProperties]:
         """List identifiers, attributes, and tags of all keys in the vault. Requires the keys/list permission.
 
         :returns: An iterator of keys without their cryptographic material or version information
-        :rtype: ~azure.core.async_paging.AsyncItemPaged[~azure.keyvault.keys.models.KeyBase]
+        :rtype: ~azure.core.async_paging.AsyncItemPaged[~azure.keyvault.keys.models.KeyProperties]
 
         Example:
             .. literalinclude:: ../tests/test_samples_keys_async.py
@@ -324,16 +324,19 @@ class KeyClient(AsyncKeyVaultClientBase):
         """
         max_results = kwargs.get("max_page_size")
         return self._client.get_keys(
-            self.vault_url, maxresults=max_results, cls=lambda objs: [KeyBase._from_key_item(x) for x in objs], **kwargs
+            self.vault_endpoint,
+            maxresults=max_results,
+            cls=lambda objs: [KeyProperties._from_key_item(x) for x in objs],
+            **kwargs,
         )
 
     @distributed_trace
-    def list_key_versions(self, name: str, **kwargs: "**Any") -> AsyncIterable[KeyBase]:
+    def list_key_versions(self, name: str, **kwargs: "**Any") -> AsyncIterable[KeyProperties]:
         """List the identifiers, attributes, and tags of a key's versions. Requires the keys/list permission.
 
         :param str name: The name of the key
         :returns: An iterator of keys without their cryptographic material
-        :rtype: ~azure.core.async_paging.AsyncItemPaged[~azure.keyvault.keys.models.KeyBase]
+        :rtype: ~azure.core.async_paging.AsyncItemPaged[~azure.keyvault.keys.models.KeyProperties]
 
         Example:
             .. literalinclude:: ../tests/test_samples_keys_async.py
@@ -345,10 +348,10 @@ class KeyClient(AsyncKeyVaultClientBase):
         """
         max_results = kwargs.get("max_page_size")
         return self._client.get_key_versions(
-            self.vault_url,
+            self.vault_endpoint,
             name,
             maxresults=max_results,
-            cls=lambda objs: [KeyBase._from_key_item(x) for x in objs],
+            cls=lambda objs: [KeyProperties._from_key_item(x) for x in objs],
             **kwargs,
         )
 
@@ -371,7 +374,7 @@ class KeyClient(AsyncKeyVaultClientBase):
                 await key_client.purge_deleted_key("key-name")
 
         """
-        await self._client.purge_deleted_key(self.vault_url, name, **kwargs)
+        await self._client.purge_deleted_key(self.vault_endpoint, name, **kwargs)
 
     @distributed_trace_async
     async def recover_deleted_key(self, name: str, **kwargs: "**Any") -> Key:
@@ -394,11 +397,11 @@ class KeyClient(AsyncKeyVaultClientBase):
                 :caption: Recover a deleted key
                 :dedent: 8
         """
-        bundle = await self._client.recover_deleted_key(self.vault_url, name, **kwargs)
+        bundle = await self._client.recover_deleted_key(self.vault_endpoint, name, **kwargs)
         return Key._from_key_bundle(bundle)
 
     @distributed_trace_async
-    async def update_key(
+    async def update_key_properties(
         self,
         name: str,
         version: Optional[str] = None,
@@ -440,13 +443,13 @@ class KeyClient(AsyncKeyVaultClientBase):
             attributes = None
 
         bundle = await self._client.update_key(
-            self.vault_url,
+            self.vault_endpoint,
             name,
             key_version=version or "",
             key_ops=key_operations,
             tags=tags,
             key_attributes=attributes,
-            error_map=error_map,
+            error_map=_error_map,
             **kwargs,
         )
         return Key._from_key_bundle(bundle)
@@ -474,7 +477,7 @@ class KeyClient(AsyncKeyVaultClientBase):
                 :caption: Get a key backup
                 :dedent: 8
         """
-        backup_result = await self._client.backup_key(self.vault_url, name, error_map=error_map, **kwargs)
+        backup_result = await self._client.backup_key(self.vault_endpoint, name, error_map=_error_map, **kwargs)
         return backup_result.value
 
     @distributed_trace_async
@@ -500,7 +503,7 @@ class KeyClient(AsyncKeyVaultClientBase):
                 :caption: Restore a key backup
                 :dedent: 8
         """
-        bundle = await self._client.restore_key(self.vault_url, backup, error_map=error_map, **kwargs)
+        bundle = await self._client.restore_key(self.vault_endpoint, backup, error_map=_error_map, **kwargs)
         return Key._from_key_bundle(bundle)
 
     @distributed_trace_async
@@ -536,6 +539,12 @@ class KeyClient(AsyncKeyVaultClientBase):
         else:
             attributes = None
         bundle = await self._client.import_key(
-            self.vault_url, name, key=key, hsm=hsm, key_attributes=attributes, tags=tags, **kwargs
+            self.vault_endpoint,
+            name,
+            key=key._to_generated_model(),
+            hsm=hsm,
+            key_attributes=attributes,
+            tags=tags,
+            **kwargs,
         )
         return Key._from_key_bundle(bundle)
