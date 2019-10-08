@@ -96,6 +96,7 @@ class EventHubConsumer(ConsumerProducerMixin):  # pylint:disable=too-many-instan
         self._handler = None
         self._track_last_enqueued_event_properties = track_last_enqueued_event_properties
         self._last_enqueued_event_properties = {}
+        self._receive_client_type = ReceiveClient
 
     def __iter__(self):
         return self
@@ -137,7 +138,7 @@ class EventHubConsumer(ConsumerProducerMixin):  # pylint:disable=too-many-instan
         else:
             desired_capabilities = {"desired_capabilities": None}
 
-        self._handler = ReceiveClient(
+        self._handler = self._receive_client_type(
             source,
             auth=self._client._create_auth(),  # pylint:disable=protected-access
             debug=self._client._config.network_tracing,  # pylint:disable=protected-access

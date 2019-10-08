@@ -100,9 +100,10 @@ class EventHubProducer(ConsumerProducerMixin):  # pylint:disable=too-many-instan
         self._outcome = None
         self._condition = None
         self._link_properties = {types.AMQPSymbol(self._timeout_symbol): types.AMQPLong(int(self._timeout * 1000))}
+        self._send_client_type = SendClient
 
     def _create_handler(self):
-        self._handler = SendClient(
+        self._handler = self._send_client_type(
             self._target,
             auth=self._client._create_auth(),  # pylint:disable=protected-access
             debug=self._client._config.network_tracing,  # pylint:disable=protected-access
