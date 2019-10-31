@@ -65,6 +65,19 @@ class BlobClient(AsyncStorageAccountHostsMixin, BlobClientBase):  # pylint: disa
         If the URL already has a SAS token, specifying an explicit credential will take priority.
     :keyword str secondary_hostname:
         The hostname of the secondary endpoint.
+    :keyword int max_block_size: The maximum chunk size for uploading a block blob in chunks.
+        Defaults to 4*1024*1024, or 4MB.
+    :keyword int max_single_put_size: If the blob size is less than max_single_put_size, then the blob will be
+        uploaded with only one http PUT request. If the blob size is larger than max_single_put_size,
+        the blob will be uploaded in chunks. Defaults to 64*1024*1024, or 64MB.
+    :keyword int min_large_block_upload_threshold: The minimum chunk size required to use the memory efficient
+        algorithm when uploading a block blob. Defaults to 4*1024*1024+1.
+    :keyword bool use_byte_buffer: Use a byte buffer for block blob uploads. Defaults to False.
+    :keyword int max_page_size: The maximum chunk size for uploading a page blob. Defaults to 4*1024*1024, or 4MB.
+    :keyword int max_single_get_size: The maximum size for a blob to be downloaded in a single call,
+        the exceeded part will be downloaded in chunks (could be parallel). Defaults to 32*1024*1024, or 32MB.
+    :keyword int max_chunk_get_size: The maximum chunk size used for downloading a blob. Defaults to 4*1024*1024,
+        or 4MB.
 
     .. admonition:: Example:
 
@@ -214,7 +227,7 @@ class BlobClient(AsyncStorageAccountHostsMixin, BlobClientBase):  # pylint: disa
                 :start-after: [START upload_a_blob]
                 :end-before: [END upload_a_blob]
                 :language: python
-                :dedent: 12
+                :dedent: 16
                 :caption: Upload a blob to the container.
         """
         options = self._upload_blob_options(
@@ -293,7 +306,7 @@ class BlobClient(AsyncStorageAccountHostsMixin, BlobClientBase):  # pylint: disa
                 :start-after: [START download_a_blob]
                 :end-before: [END download_a_blob]
                 :language: python
-                :dedent: 12
+                :dedent: 16
                 :caption: Download a blob.
         """
         options = self._download_blob_options(
@@ -356,7 +369,7 @@ class BlobClient(AsyncStorageAccountHostsMixin, BlobClientBase):  # pylint: disa
                 :start-after: [START delete_blob]
                 :end-before: [END delete_blob]
                 :language: python
-                :dedent: 12
+                :dedent: 16
                 :caption: Delete a blob.
         """
         options = self._delete_blob_options(delete_snapshots=delete_snapshots, **kwargs)
@@ -383,7 +396,7 @@ class BlobClient(AsyncStorageAccountHostsMixin, BlobClientBase):  # pylint: disa
                 :start-after: [START undelete_blob]
                 :end-before: [END undelete_blob]
                 :language: python
-                :dedent: 8
+                :dedent: 12
                 :caption: Undeleting a blob.
         """
         try:
@@ -434,7 +447,7 @@ class BlobClient(AsyncStorageAccountHostsMixin, BlobClientBase):  # pylint: disa
                 :start-after: [START get_blob_properties]
                 :end-before: [END get_blob_properties]
                 :language: python
-                :dedent: 8
+                :dedent: 12
                 :caption: Getting the properties for a blob.
         """
         access_conditions = get_access_conditions(kwargs.pop('lease', None))
@@ -723,7 +736,7 @@ class BlobClient(AsyncStorageAccountHostsMixin, BlobClientBase):  # pylint: disa
                 :start-after: [START create_blob_snapshot]
                 :end-before: [END create_blob_snapshot]
                 :language: python
-                :dedent: 8
+                :dedent: 12
                 :caption: Create a snapshot of the blob.
         """
         options = self._create_snapshot_options(metadata=metadata, **kwargs)
@@ -860,7 +873,7 @@ class BlobClient(AsyncStorageAccountHostsMixin, BlobClientBase):  # pylint: disa
                 :start-after: [START copy_blob_from_url]
                 :end-before: [END copy_blob_from_url]
                 :language: python
-                :dedent: 12
+                :dedent: 16
                 :caption: Copy a blob from a URL.
         """
         options = self._start_copy_from_url_options(
@@ -895,7 +908,7 @@ class BlobClient(AsyncStorageAccountHostsMixin, BlobClientBase):  # pylint: disa
                 :start-after: [START abort_copy_blob_from_url]
                 :end-before: [END abort_copy_blob_from_url]
                 :language: python
-                :dedent: 12
+                :dedent: 16
                 :caption: Abort copying a blob from URL.
         """
         options = self._abort_copy_options(copy_id, **kwargs)
@@ -949,7 +962,7 @@ class BlobClient(AsyncStorageAccountHostsMixin, BlobClientBase):  # pylint: disa
                 :start-after: [START acquire_lease_on_blob]
                 :end-before: [END acquire_lease_on_blob]
                 :language: python
-                :dedent: 8
+                :dedent: 12
                 :caption: Acquiring a lease on a blob.
         """
         lease = BlobLeaseClient(self, lease_id=lease_id) # type: ignore

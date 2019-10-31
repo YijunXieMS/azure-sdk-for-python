@@ -51,6 +51,12 @@ class QueueClient(StorageAccountHostsMixin):
         shared access key, or an instance of a TokenCredentials class from azure.identity.
     :keyword str secondary_hostname:
         The hostname of the secondary endpoint.
+    :keyword encode_policy: The encoding policy to use on outgoing messages.
+        Default is not to encode messages. Other options include :class:`TextBase64EncodePolicy`,
+        :class:`BinaryBase64EncodePolicy` or `None`.
+    :keyword decode_policy: The decoding policy to use on incoming messages.
+        Default value is not to decode messages. Other options include :class:`TextBase64DecodePolicy`,
+        :class:`BinaryBase64DecodePolicy` or `None`.
 
     .. admonition:: Example:
 
@@ -81,7 +87,7 @@ class QueueClient(StorageAccountHostsMixin):
 
         _, sas_token = parse_query(parsed_url.query)
         if not sas_token and not credential:
-            raise ValueError("You need to provide either a SAS token or an account key to authenticate.")
+            raise ValueError("You need to provide either a SAS token or an account shared key to authenticate.")
 
         self.queue_name = queue_name
         self._query_str, credential = self._format_query_string(sas_token, credential)

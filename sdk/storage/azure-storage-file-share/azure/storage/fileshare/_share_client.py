@@ -58,6 +58,7 @@ class ShareClient(StorageAccountHostsMixin):
         shared access key.
     :keyword str secondary_hostname:
         The hostname of the secondary endpoint.
+    :keyword int max_range_size: The maximum range size used for a file upload. Defaults to 4*1024*1024.
     """
     def __init__( # type: ignore
             self, account_url,  # type: str
@@ -84,7 +85,7 @@ class ShareClient(StorageAccountHostsMixin):
         path_snapshot, sas_token = parse_query(parsed_url.query)
         if not sas_token and not credential:
             raise ValueError(
-                'You need to provide either an account key or SAS token when creating a storage service.')
+                'You need to provide either an account shared key or SAS token when creating a storage service.')
         try:
             self.snapshot = snapshot.snapshot # type: ignore
         except AttributeError:

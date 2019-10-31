@@ -30,7 +30,7 @@ from .._generated.models import (
     SignedIdentifier)
 from .._deserialize import deserialize_container_properties
 from .._serialize import get_modify_conditions
-from .._container_client import ContainerClient as ContainerClientBase
+from .._container_client import ContainerClient as ContainerClientBase, _get_blob_name
 from .._lease import get_access_conditions
 from .._models import ContainerProperties, BlobProperties, BlobType  # pylint: disable=unused-import
 from ._models import BlobPropertiesPaged, BlobPrefix
@@ -69,6 +69,19 @@ class ContainerClient(AsyncStorageAccountHostsMixin, ContainerClientBase):
         If the URL already has a SAS token, specifying an explicit credential will take priority.
     :keyword str secondary_hostname:
         The hostname of the secondary endpoint.
+    :keyword int max_block_size: The maximum chunk size for uploading a block blob in chunks.
+        Defaults to 4*1024*1024, or 4MB.
+    :keyword int max_single_put_size: If the blob size is less than max_single_put_size, then the blob will be
+        uploaded with only one http PUT request. If the blob size is larger than max_single_put_size,
+        the blob will be uploaded in chunks. Defaults to 64*1024*1024, or 64MB.
+    :keyword int min_large_block_upload_threshold: The minimum chunk size required to use the memory efficient
+        algorithm when uploading a block blob. Defaults to 4*1024*1024+1.
+    :keyword bool use_byte_buffer: Use a byte buffer for block blob uploads. Defaults to False.
+    :keyword int max_page_size: The maximum chunk size for uploading a page blob. Defaults to 4*1024*1024, or 4MB.
+    :keyword int max_single_get_size: The maximum size for a blob to be downloaded in a single call,
+        the exceeded part will be downloaded in chunks (could be parallel). Defaults to 32*1024*1024, or 32MB.
+    :keyword int max_chunk_get_size: The maximum chunk size used for downloading a blob. Defaults to 4*1024*1024,
+        or 4MB.
 
     .. admonition:: Example:
 
@@ -83,7 +96,7 @@ class ContainerClient(AsyncStorageAccountHostsMixin, ContainerClientBase):
             :start-after: [START create_container_client_sasurl]
             :end-before: [END create_container_client_sasurl]
             :language: python
-            :dedent: 8
+            :dedent: 12
             :caption: Creating the container client directly.
     """
     def __init__(
@@ -125,7 +138,7 @@ class ContainerClient(AsyncStorageAccountHostsMixin, ContainerClientBase):
                 :start-after: [START create_container]
                 :end-before: [END create_container]
                 :language: python
-                :dedent: 12
+                :dedent: 16
                 :caption: Creating a container to store blobs.
         """
         headers = kwargs.pop('headers', {})
@@ -181,7 +194,7 @@ class ContainerClient(AsyncStorageAccountHostsMixin, ContainerClientBase):
                 :start-after: [START delete_container]
                 :end-before: [END delete_container]
                 :language: python
-                :dedent: 12
+                :dedent: 16
                 :caption: Delete a container.
         """
         lease = kwargs.pop('lease', None)
@@ -244,7 +257,7 @@ class ContainerClient(AsyncStorageAccountHostsMixin, ContainerClientBase):
                 :start-after: [START acquire_lease_on_container]
                 :end-before: [END acquire_lease_on_container]
                 :language: python
-                :dedent: 8
+                :dedent: 12
                 :caption: Acquiring a lease on the container.
         """
         lease = BlobLeaseClient(self, lease_id=lease_id) # type: ignore
@@ -290,7 +303,7 @@ class ContainerClient(AsyncStorageAccountHostsMixin, ContainerClientBase):
                 :start-after: [START get_container_properties]
                 :end-before: [END get_container_properties]
                 :language: python
-                :dedent: 12
+                :dedent: 16
                 :caption: Getting properties on the container.
         """
         lease = kwargs.pop('lease', None)
@@ -342,7 +355,7 @@ class ContainerClient(AsyncStorageAccountHostsMixin, ContainerClientBase):
                 :start-after: [START set_container_metadata]
                 :end-before: [END set_container_metadata]
                 :language: python
-                :dedent: 12
+                :dedent: 16
                 :caption: Setting metadata on the container.
         """
         headers = kwargs.pop('headers', {})
@@ -383,7 +396,7 @@ class ContainerClient(AsyncStorageAccountHostsMixin, ContainerClientBase):
                 :start-after: [START get_container_access_policy]
                 :end-before: [END get_container_access_policy]
                 :language: python
-                :dedent: 12
+                :dedent: 16
                 :caption: Getting the access policy on the container.
         """
         lease = kwargs.pop('lease', None)
@@ -446,7 +459,7 @@ class ContainerClient(AsyncStorageAccountHostsMixin, ContainerClientBase):
                 :start-after: [START set_container_access_policy]
                 :end-before: [END set_container_access_policy]
                 :language: python
-                :dedent: 12
+                :dedent: 16
                 :caption: Setting access policy on the container.
         """
         timeout = kwargs.pop('timeout', None)
@@ -501,7 +514,7 @@ class ContainerClient(AsyncStorageAccountHostsMixin, ContainerClientBase):
                 :start-after: [START list_blobs_in_container]
                 :end-before: [END list_blobs_in_container]
                 :language: python
-                :dedent: 8
+                :dedent: 12
                 :caption: List the blobs in the container.
         """
         if include and not isinstance(include, list):
@@ -666,7 +679,7 @@ class ContainerClient(AsyncStorageAccountHostsMixin, ContainerClientBase):
                 :start-after: [START upload_blob_to_container]
                 :end-before: [END upload_blob_to_container]
                 :language: python
-                :dedent: 8
+                :dedent: 12
                 :caption: Upload blob to the container.
         """
         blob = self.get_blob_client(name)
@@ -763,8 +776,9 @@ class ContainerClient(AsyncStorageAccountHostsMixin, ContainerClientBase):
         Soft deleted blobs or snapshots are accessible through :func:`list_blobs()` specifying `include=["deleted"]`
         Soft-deleted blobs or snapshots can be restored using :func:`~BlobClient.undelete()`
 
-        :param blobs: The blob names with which to interact.
-        :type blobs: str
+        :param blobs: The blob names with which to interact. This can be a single blob, or multiple values can
+            be supplied, where each value is either the name of the blob (str) or BlobProperties.
+        :type blobs: str or ~azure.storage.blob.BlobProperties
         :param str delete_snapshots:
             Required if a blob has associated snapshots. Values include:
              - "only": Deletes only the blobs snapshots.
@@ -798,6 +812,15 @@ class ContainerClient(AsyncStorageAccountHostsMixin, ContainerClientBase):
             The timeout parameter is expressed in seconds.
         :return: An async iterator of responses, one for each blob in order
         :rtype: asynciterator[~azure.core.pipeline.transport.AsyncHttpResponse]
+
+        .. admonition:: Example:
+
+            .. literalinclude:: ../samples/blob_samples_common_async.py
+                :start-after: [START delete_multiple_blobs]
+                :end-before: [END delete_multiple_blobs]
+                :language: python
+                :dedent: 12
+                :caption: Deleting multiple blobs.
         """
         raise_on_any_failure = kwargs.pop('raise_on_any_failure', True)
         timeout = kwargs.pop('timeout', None)
@@ -816,9 +839,10 @@ class ContainerClient(AsyncStorageAccountHostsMixin, ContainerClientBase):
 
         reqs = []
         for blob in blobs:
+            blob_name = _get_blob_name(blob)
             req = HttpRequest(
                 "DELETE",
-                "/{}/{}".format(self.container_name, blob),
+                "/{}/{}".format(self.container_name, blob_name),
                 headers=header_parameters
             )
             req.format_parameters(query_parameters)
@@ -846,8 +870,9 @@ class ContainerClient(AsyncStorageAccountHostsMixin, ContainerClientBase):
             tier is optimized for storing data that is rarely accessed and stored
             for at least six months with flexible latency requirements.
         :type standard_blob_tier: str or ~azure.storage.blob.StandardBlobTier
-        :param blobs: The blobs with which to interact.
-        :type blobs: str
+        :param blobs: The blobs with which to interact. This can be a single blob, or multiple values can
+            be supplied, where each value is either the name of the blob (str) or BlobProperties.
+        :type blobs: str or ~azure.storage.blob.BlobProperties
         :keyword int timeout:
             The timeout parameter is expressed in seconds.
         :keyword lease:
@@ -877,9 +902,10 @@ class ContainerClient(AsyncStorageAccountHostsMixin, ContainerClientBase):
 
         reqs = []
         for blob in blobs:
+            blob_name = _get_blob_name(blob)
             req = HttpRequest(
                 "PUT",
-                "/{}/{}".format(self.container_name, blob),
+                "/{}/{}".format(self.container_name, blob_name),
                 headers=header_parameters
             )
             req.format_parameters(query_parameters)
@@ -901,7 +927,8 @@ class ContainerClient(AsyncStorageAccountHostsMixin, ContainerClientBase):
             blob and number of allowed IOPS. This is only applicable to page blobs on
             premium storage accounts.
         :type premium_page_blob_tier: ~azure.storage.blob.PremiumPageBlobTier
-        :param blobs: The blobs with which to interact.
+        :param blobs: The blobs with which to interact. This can be a single blob, or multiple values can
+            be supplied, where each value is either the name of the blob (str) or BlobProperties.
         :type blobs: str or ~azure.storage.blob.BlobProperties
         :keyword int timeout:
             The timeout parameter is expressed in seconds. This method may make
@@ -934,9 +961,10 @@ class ContainerClient(AsyncStorageAccountHostsMixin, ContainerClientBase):
 
         reqs = []
         for blob in blobs:
+            blob_name = _get_blob_name(blob)
             req = HttpRequest(
                 "PUT",
-                "/{}/{}".format(self.container_name, blob),
+                "/{}/{}".format(self.container_name, blob_name),
                 headers=header_parameters
             )
             req.format_parameters(query_parameters)
@@ -968,13 +996,10 @@ class ContainerClient(AsyncStorageAccountHostsMixin, ContainerClientBase):
                 :start-after: [START get_blob_client]
                 :end-before: [END get_blob_client]
                 :language: python
-                :dedent: 8
+                :dedent: 12
                 :caption: Get the blob client.
         """
-        try:
-            blob_name = blob.name
-        except AttributeError:
-            blob_name = blob
+        blob_name = _get_blob_name(blob)
         _pipeline = AsyncPipeline(
             transport=AsyncTransportWrapper(self._pipeline._transport), # pylint: disable = protected-access
             policies=self._pipeline._impl_policies # pylint: disable = protected-access

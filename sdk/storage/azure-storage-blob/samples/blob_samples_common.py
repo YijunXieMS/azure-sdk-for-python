@@ -6,6 +6,17 @@
 # license information.
 # --------------------------------------------------------------------------
 
+"""
+FILE: blob_samples_common.py
+DESCRIPTION:
+    This sample demonstrates common blob operations including creating snapshots, soft deleteing, undeleting blobs,
+    batch deleting blobs and acquiring lease.
+USAGE:
+    python blob_samples_common.py
+    Set the environment variables with your own values before running the sample.
+    1) AZURE_STORAGE_CONNECTION_STRING - the connection string to your storage account
+"""
+
 import os
 
 from azure.core.exceptions import HttpResponseError, ResourceExistsError
@@ -16,7 +27,7 @@ SOURCE_FILE = 'SampleSource.txt'
 
 class CommonBlobSamples(object):
 
-    connection_string = os.getenv("CONNECTION_STRING")
+    connection_string = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
 
     #--Begin Blob Samples-----------------------------------------------------------------
 
@@ -30,7 +41,10 @@ class CommonBlobSamples(object):
         container_client = blob_service_client.get_container_client("containerformyblobs")
 
         # Create new Container
-        container_client.create_container()
+        try:
+            container_client.create_container()
+        except ResourceExistsError:
+            pass
 
         # Upload a blob to the container
         with open(SOURCE_FILE, "rb") as data:
@@ -95,6 +109,39 @@ class CommonBlobSamples(object):
         # Delete container
         blob_service_client.delete_container("containerfordeletedblobs")
 
+    def delete_multiple_blobs(self):
+        # Instantiate a BlobServiceClient using a connection string
+        from azure.storage.blob import BlobServiceClient
+        blob_service_client = BlobServiceClient.from_connection_string(self.connection_string)
+
+        # Instantiate a ContainerClient
+        container_client = blob_service_client.get_container_client("containerforbatchblobdelete")
+
+        # Create new Container
+        try:
+            container_client.create_container()
+        except ResourceExistsError:
+            # Container already created
+            pass
+
+        # Upload a blob to the container
+        upload_data = b"Hello World"
+        container_client.upload_blob(name="my_blob1", data=upload_data)
+        container_client.upload_blob(name="my_blob2", data=upload_data)
+        container_client.upload_blob(name="my_blob3", data=upload_data)
+
+        # [START delete_multiple_blobs]
+        # Delete multiple blobs in the container by name
+        container_client.delete_blobs("my_blob1", "my_blob2")
+
+        # Delete multiple blobs by properties iterator
+        my_blobs = container_client.list_blobs(name_starts_with="my_blob")
+        container_client.delete_blobs(*my_blobs)
+        # [END delete_multiple_blobs]
+
+        # Delete container
+        blob_service_client.delete_container("containerforbatchblobdeletesasync")
+
     def acquire_lease_on_blob(self):
 
         # Instantiate a BlobServiceClient using a connection string
@@ -105,7 +152,10 @@ class CommonBlobSamples(object):
         container_client = blob_service_client.get_container_client("leasemyblobscontainer")
 
         # Create new Container
-        container_client.create_container()
+        try:
+            container_client.create_container()
+        except ResourceExistsError:
+            pass
 
         # Upload a blob to the container
         with open(SOURCE_FILE, "rb") as data:
@@ -134,7 +184,10 @@ class CommonBlobSamples(object):
         container_client = blob_service_client.get_container_client("copyblobcontainer")
 
         # Create new Container
-        container_client.create_container()
+        try:
+            container_client.create_container()
+        except ResourceExistsError:
+            pass
 
         try:
             # [START copy_blob_from_url]
@@ -160,3 +213,11 @@ class CommonBlobSamples(object):
 
         finally:
             blob_service_client.delete_container("copyblobcontainer")
+
+if __name__ == '__main__':
+    sample = CommonBlobSamples()
+    sample.blob_snapshots()
+    sample.soft_delete_and_undelete_blob()
+    sample.acquire_lease_on_blob()
+    sample.start_copy_blob_from_url_and_abort_copy()
+    sample.delete_multiple_blobs()

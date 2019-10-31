@@ -69,6 +69,19 @@ class BlobServiceClient(AsyncStorageAccountHostsMixin, BlobServiceClientBase):
         If the URL already has a SAS token, specifying an explicit credential will take priority.
     :keyword str secondary_hostname:
         The hostname of the secondary endpoint.
+    :keyword int max_block_size: The maximum chunk size for uploading a block blob in chunks.
+        Defaults to 4*1024*1024, or 4MB.
+    :keyword int max_single_put_size: If the blob size is less than max_single_put_size, then the blob will be
+        uploaded with only one http PUT request. If the blob size is larger than max_single_put_size,
+        the blob will be uploaded in chunks. Defaults to 64*1024*1024, or 64MB.
+    :keyword int min_large_block_upload_threshold: The minimum chunk size required to use the memory efficient
+        algorithm when uploading a block blob. Defaults to 4*1024*1024+1.
+    :keyword bool use_byte_buffer: Use a byte buffer for block blob uploads. Defaults to False.
+    :keyword int max_page_size: The maximum chunk size for uploading a page blob. Defaults to 4*1024*1024, or 4MB.
+    :keyword int max_single_get_size: The maximum size for a blob to be downloaded in a single call,
+        the exceeded part will be downloaded in chunks (could be parallel). Defaults to 32*1024*1024, or 32MB.
+    :keyword int max_chunk_get_size: The maximum chunk size used for downloading a blob. Defaults to 4*1024*1024,
+        or 4MB.
 
     .. admonition:: Example:
 
@@ -148,7 +161,7 @@ class BlobServiceClient(AsyncStorageAccountHostsMixin, BlobServiceClientBase):
                 :start-after: [START get_blob_service_account_info]
                 :end-before: [END get_blob_service_account_info]
                 :language: python
-                :dedent: 8
+                :dedent: 12
                 :caption: Getting account information for the blob service.
         """
         try:
@@ -188,7 +201,7 @@ class BlobServiceClient(AsyncStorageAccountHostsMixin, BlobServiceClientBase):
                 :start-after: [START get_blob_service_stats]
                 :end-before: [END get_blob_service_stats]
                 :language: python
-                :dedent: 8
+                :dedent: 12
                 :caption: Getting service stats for the blob service.
         """
         timeout = kwargs.pop('timeout', None)
@@ -217,7 +230,7 @@ class BlobServiceClient(AsyncStorageAccountHostsMixin, BlobServiceClientBase):
                 :start-after: [START get_blob_service_properties]
                 :end-before: [END get_blob_service_properties]
                 :language: python
-                :dedent: 8
+                :dedent: 12
                 :caption: Getting service properties for the blob service.
         """
         timeout = kwargs.pop('timeout', None)
@@ -282,7 +295,7 @@ class BlobServiceClient(AsyncStorageAccountHostsMixin, BlobServiceClientBase):
                 :start-after: [START set_blob_service_properties]
                 :end-before: [END set_blob_service_properties]
                 :language: python
-                :dedent: 8
+                :dedent: 12
                 :caption: Setting service properties for the blob service.
         """
         props = StorageServiceProperties(
@@ -332,7 +345,7 @@ class BlobServiceClient(AsyncStorageAccountHostsMixin, BlobServiceClientBase):
                 :start-after: [START bsc_list_containers]
                 :end-before: [END bsc_list_containers]
                 :language: python
-                :dedent: 12
+                :dedent: 16
                 :caption: Listing the containers in the blob service.
         """
         include = 'metadata' if include_metadata else None
@@ -383,7 +396,7 @@ class BlobServiceClient(AsyncStorageAccountHostsMixin, BlobServiceClientBase):
                 :start-after: [START bsc_create_container]
                 :end-before: [END bsc_create_container]
                 :language: python
-                :dedent: 12
+                :dedent: 16
                 :caption: Creating a container in the blob service.
         """
         container = self.get_container_client(name)
@@ -441,7 +454,7 @@ class BlobServiceClient(AsyncStorageAccountHostsMixin, BlobServiceClientBase):
                 :start-after: [START bsc_delete_container]
                 :end-before: [END bsc_delete_container]
                 :language: python
-                :dedent: 12
+                :dedent: 16
                 :caption: Deleting a container in the blob service.
         """
         container = self.get_container_client(container) # type: ignore
@@ -471,7 +484,7 @@ class BlobServiceClient(AsyncStorageAccountHostsMixin, BlobServiceClientBase):
                 :start-after: [START bsc_get_container_client]
                 :end-before: [END bsc_get_container_client]
                 :language: python
-                :dedent: 8
+                :dedent: 12
                 :caption: Getting the container client to interact with a specific container.
         """
         try:
@@ -521,7 +534,7 @@ class BlobServiceClient(AsyncStorageAccountHostsMixin, BlobServiceClientBase):
                 :start-after: [START bsc_get_blob_client]
                 :end-before: [END bsc_get_blob_client]
                 :language: python
-                :dedent: 12
+                :dedent: 16
                 :caption: Getting the blob client to interact with a specific blob.
         """
         try:
