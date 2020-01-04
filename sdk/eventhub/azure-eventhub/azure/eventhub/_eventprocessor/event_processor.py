@@ -225,12 +225,17 @@ class EventProcessor(
         """
         while self._running:
             try:
+                _LOGGER.info("start claim_ownership")
                 claimed_partition_ids = self._ownership_manager.claim_ownership()
+                _LOGGER.info("end claim_ownership %r", claimed_partition_ids)
                 if claimed_partition_ids:
                     existing_pids = set(self._consumers.keys())
                     claimed_pids = set(claimed_partition_ids)
                     to_cancel_pids = existing_pids - claimed_pids
                     newly_claimed_pids = claimed_pids - existing_pids
+                    _LOGGER.info("claimed: %r", claimed_partition_ids)
+                    _LOGGER.info("to cancel: %r", to_cancel_pids)
+                    _LOGGER.info("newly_claimed_pids: %r", newly_claimed_pids)
                     if newly_claimed_pids:
                         checkpoints = (
                             self._ownership_manager.get_checkpoints()
@@ -247,7 +252,9 @@ class EventProcessor(
                     )
                     to_cancel_pids = set(self._consumers.keys())
                 if to_cancel_pids:
+                    _LOGGER.info("to cancel 2: %r", to_cancel_pids)
                     self._cancel_tasks_for_partitions(to_cancel_pids)
+                _LOGGER.info("self._consumers %r", self._consumers)
             except Exception as err:  # pylint:disable=broad-except
                 _LOGGER.warning(
                     "An exception (%r) occurred during balancing and claiming ownership for "
