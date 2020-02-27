@@ -32,6 +32,21 @@ steps:
     
   - ${{ parameters.BeforeTestSteps }}
 
+  - script: |
+      touch /cores/test && rm /cores/test
+      ulimit -c unlimited
+      sleep 100 &
+      killall -SIGSEGV sleep
+
+      ls -R /cores
+    displayName: 'Enable Core Dumps And Check Em'
+    continueOnError: true
+
+  - task: PublishPipelineArtifact@0
+    inputs:
+      artifactName: 'core_dumps' 
+      targetPath: /cores
+
   - task: PythonScript@0
     displayName: 'Run Tests'
     inputs:

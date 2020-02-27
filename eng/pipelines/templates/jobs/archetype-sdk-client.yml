@@ -8,53 +8,11 @@ parameters:
   InjectedPackages: ''
   BuildDocs: true
   TestMatrix:
-    Linux_Python27:
-      OSName: 'Linux'
-      OSVmImage: 'ubuntu-16.04'
-      PythonVersion: '2.7'
-      CoverageArg: ''
-      RunForPR: true
-    Linux_Python35:
-      OSName: 'Linux'
-      OSVmImage: 'ubuntu-16.04'
-      PythonVersion: '3.5'
-      CoverageArg: ''
-      RunForPR: true
-    Linux_Python36:
-      OSName: 'Linux'
-      OSVmImage: 'ubuntu-16.04'
-      PythonVersion: '3.6'
-      CoverageArg: ''
-      RunForPR: false
-    Linux_Python37:
-      OSName: 'Linux'
-      OSVmImage: 'ubuntu-16.04'
-      PythonVersion: '3.7'
-      CoverageArg: ''
-      RunForPR: false
-    Linux_Python38:
-      OSName: 'Linux'
-      OSVmImage: 'ubuntu-16.04'
-      PythonVersion: '3.8'
-      CoverageArg: ''
-      RunForPR: true
-    Windows_Python35:
-      OSName: 'Windows'
-      OSVmImage: 'windows-2019'
-      PythonVersion: '3.5'
-      CoverageArg: ''
-      RunForPR: false
     MacOS_Python27:
       OSName: 'MacOS'
       OSVmImage: 'macOS-10.15'
       PythonVersion: '2.7'
       CoverageArg: ''
-      RunForPR: false
-    Linux_pypy3:
-      OSName: 'Linux'
-      OSVmImage: 'ubuntu-16.04'
-      PythonVersion: 'pypy3'
-      CoverageArg: '--disablecov'
       RunForPR: false
 
   

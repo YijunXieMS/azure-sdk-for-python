@@ -10,20 +10,9 @@ resources:
 jobs:
   - template: ../../eng/pipelines/templates/jobs/archetype-sdk-tests.yml
     parameters:
+      AllocateResourceGroup: 'false'
       ServiceDirectory: eventhub
       Matrix:
-        Linux_Python35:
-          OSName: 'Linux'
-          OSVmImage: 'ubuntu-16.04'
-          PythonVersion: '3.5'
-        Linux_Python38:
-          OSName: 'Linux'
-          OSVmImage: 'ubuntu-16.04'
-          PythonVersion: '3.8'
-        Windows_Python27:
-          OSName: 'Windows'
-          OSVmImage: 'windows-2019'
-          PythonVersion: '2.7'
         MacOs_Python37:
           OSName: 'MacOS'
           OSVmImage: 'macOS-10.15'
