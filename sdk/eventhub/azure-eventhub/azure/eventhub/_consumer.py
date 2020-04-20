@@ -22,6 +22,7 @@ from ._constants import (
     EPOCH_SYMBOL,
     TIMEOUT_SYMBOL,
     RECEIVER_RUNTIME_METRIC_SYMBOL,
+    RECEIVER_LINK_REDIRECT_SYMBOL,
 )
 
 if TYPE_CHECKING:
@@ -69,8 +70,8 @@ class EventHubConsumer(
         It is set to `False` by default.
     """
 
-    def __init__(self, client, source, **kwargs):
-        # type: (EventHubConsumerClient, str, Any) -> None
+    def __init__(self, client, **kwargs):
+        # type: (EventHubConsumerClient, Any) -> None
         event_position = kwargs.get("event_position", None)
         prefetch = kwargs.get("prefetch", 300)
         owner_level = kwargs.get("owner_level", None)
@@ -90,7 +91,11 @@ class EventHubConsumer(
             "on_event_received"
         ]  # type: Callable[[EventData], None]
         self._client = client
-        self._source = source
+        self._partition_id = kwargs.get("partition_id")
+        self._source = "amqps://{}/{}/ConsumerGroups/{}/Partitions/{}".format(
+            client._address.hostname, client.eventhub_name, client._consumer_group, self._partition_id
+        )
+        self._working_host = client._address.hostname  # for link redirect
         self._offset = event_position
         self._offset_inclusive = kwargs.get("event_position_inclusive", False)
         self._prefetch = prefetch
@@ -128,14 +133,28 @@ class EventHubConsumer(
 
     def _create_handler(self, auth):
         # type: (JWTTokenAuth) -> None
-        source = Source(self._source)
+
+        handler_source = "amqps://{}/{}/ConsumerGroups/{}/Partitions/{}".format(
+            self._working_host,
+            self._client.eventhub_name,
+            self._client._consumer_group,
+            self._partition_id
+        ) if self._working_host else self._source
+        source = Source(handler_source)
         if self._offset is not None:
             source.set_filter(
                 event_position_selector(self._offset, self._offset_inclusive)
             )
+
+        enable_redirect = self._client._config.enable_redirect if self._working_host == self._client._address.hostname \
+            else False
         desired_capabilities = None
-        if self._track_last_enqueued_event_properties:
-            symbol_array = [types.AMQPSymbol(RECEIVER_RUNTIME_METRIC_SYMBOL)]
+        if self._track_last_enqueued_event_properties or enable_redirect:
+            symbol_array = []
+            if self._track_last_enqueued_event_properties:
+                symbol_array.append([types.AMQPSymbol(RECEIVER_RUNTIME_METRIC_SYMBOL)])
+            if enable_redirect:
+                symbol_array.append(types.AMQPSymbol(RECEIVER_LINK_REDIRECT_SYMBOL))
             desired_capabilities = utils.data_factory(types.AMQPArray(symbol_array))
 
         properties = create_properties(
@@ -193,7 +212,7 @@ class EventHubConsumer(
             self._create_handler(auth)
             self._handler.open(
                 connection=self._client._conn_manager.get_connection(
-                    self._client._address.hostname, auth
+                    self._working_host, auth
                 )  # pylint: disable=protected-access
             )
             self.handler_ready = False
@@ -217,6 +236,9 @@ class EventHubConsumer(
                     if self._open():
                         self._handler.do_work()  # type: ignore
                     break
+                except uamqp.errors.LinkRedirect as redirect:
+                    self._handle_redirect(redirect)
+                    return
                 except Exception as exception:  # pylint: disable=broad-except
                     if (
                         isinstance(exception, uamqp.errors.LinkDetach)

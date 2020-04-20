@@ -18,7 +18,7 @@ from typing import (
     TYPE_CHECKING,
 )  # pylint: disable=unused-import
 
-from uamqp import types, constants, errors
+from uamqp import types, constants, errors, utils
 from uamqp import SendClient
 
 from azure.core.tracing import AbstractSpan
@@ -33,7 +33,7 @@ from ._utils import (
     send_context_manager,
     add_link_to_send,
 )
-from ._constants import TIMEOUT_SYMBOL
+from ._constants import TIMEOUT_SYMBOL, RECEIVER_LINK_REDIRECT_SYMBOL
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -82,8 +82,8 @@ class EventHubProducer(
      Default value is `True`.
     """
 
-    def __init__(self, client, target, **kwargs):
-        # type: (EventHubProducerClient, str, Any) -> None
+    def __init__(self, client, **kwargs):
+        # type: (EventHubProducerClient, Any) -> None
         partition = kwargs.get("partition", None)
         send_timeout = kwargs.get("send_timeout", 60)
         keep_alive = kwargs.get("keep_alive", None)
@@ -95,7 +95,8 @@ class EventHubProducer(
 
         self._max_message_size_on_link = None
         self._client = client
-        self._target = target
+        self._working_host = client._address.hostname  # for link redirect
+        self._target = "amqps://{}/{}".format(client._address.hostname, client.eventhub_name)
         self._partition = partition
         self._timeout = send_timeout
         self._idle_timeout = (idle_timeout * 1000) if idle_timeout else None
@@ -121,6 +122,10 @@ class EventHubProducer(
 
     def _create_handler(self, auth):
         # type: (JWTTokenAuth) -> None
+        desired_capabilities = None
+        if self._client._config.enable_redirect and self._client._address.hostname == self._working_host:
+                symbol_array = [types.AMQPSymbol(RECEIVER_LINK_REDIRECT_SYMBOL)]
+                desired_capabilities = utils.data_factory(types.AMQPArray(symbol_array))
         self._handler = SendClient(
             self._target,
             auth=auth,
@@ -132,6 +137,7 @@ class EventHubProducer(
             client_name=self._name,
             link_properties=self._link_properties,
             properties=create_properties(self._client._config.user_agent),  # pylint: disable=protected-access
+            desired_capabilities=desired_capabilities
         )
 
     def _open_with_retry(self):

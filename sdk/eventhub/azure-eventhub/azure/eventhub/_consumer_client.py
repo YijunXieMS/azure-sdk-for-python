@@ -127,7 +127,6 @@ class EventHubConsumerClient(ClientBase):
 
     def _create_consumer(
         self,
-        consumer_group,  # type: str
         partition_id,  # type: str
         event_position,  # type: Union[str, int, datetime.datetime]
         on_event_received,  # type: Callable[[PartitionContext, EventData], None]
@@ -141,12 +140,9 @@ class EventHubConsumerClient(ClientBase):
         )
         event_position_inclusive = kwargs.get("event_position_inclusive", False)
 
-        source_url = "amqps://{}{}/ConsumerGroups/{}/Partitions/{}".format(
-            self._address.hostname, self._address.path, consumer_group, partition_id
-        )
         handler = EventHubConsumer(
             self,
-            source_url,
+            partition_id=partition_id,
             event_position=event_position,
             event_position_inclusive=event_position_inclusive,
             owner_level=owner_level,

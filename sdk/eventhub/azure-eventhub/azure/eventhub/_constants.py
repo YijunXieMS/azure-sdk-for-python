@@ -34,6 +34,7 @@ PROP_REPLY_TO_GROUP_ID = b"reply-to-group-id"
 EPOCH_SYMBOL = b"com.microsoft:epoch"
 TIMEOUT_SYMBOL = b"com.microsoft:timeout"
 RECEIVER_RUNTIME_METRIC_SYMBOL = b"com.microsoft:enable-receiver-runtime-metric"
+RECEIVER_LINK_REDIRECT_SYMBOL = b"amqp:link:redirect"
 
 MAX_USER_AGENT_LENGTH = 512
 ALL_PARTITIONS = "all-partitions"

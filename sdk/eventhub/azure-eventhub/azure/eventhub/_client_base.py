@@ -144,6 +144,7 @@ class ClientBase(object):  # pylint:disable=too-many-instance-attributes
         self._debug = self._config.network_tracing
         self._conn_manager = get_connection_manager(**kwargs)
         self._idle_timeout = kwargs.get("idle_timeout", None)
+        self._enable_redirect = kwargs.get("enable_redirect", False)
 
     @staticmethod
     def _from_connection_string(conn_str, **kwargs):
@@ -366,7 +367,7 @@ class ConsumerProducerMixin(object):
             self._create_handler(auth)
             self._handler.open(
                 connection=self._client._conn_manager.get_connection(
-                    self._client._address.hostname, auth
+                    self._working_host, auth
                 )  # pylint: disable=protected-access
             )
             while not self._handler.client_ready():
@@ -385,6 +386,11 @@ class ConsumerProducerMixin(object):
     def _close_connection(self):
         self._close_handler()
         self._client._conn_manager.reset_connection_if_broken()  # pylint: disable=protected-access
+
+    def _handle_redirect(self, redirect):
+        hostname = redirect.hostname.decode()
+        self._working_host = hostname[:hostname.rindex(":") + 1] + str(redirect.port)
+        self._close_handler()
 
     def _handle_exception(self, exception):
         if not self.running and isinstance(exception, compat.TimeoutException):
@@ -410,7 +416,12 @@ class ConsumerProducerMixin(object):
                         **kwargs
                     )
                 return operation()
+            except errors.LinkRedirect as redirect:
+                self._handle_redirect(redirect)
             except Exception as exception:  # pylint:disable=broad-except
+                if isinstance(exception, errors.ConnectionClose) \
+                        and exception.condition == constants.ErrorCodes.ConnectionCloseForced:
+                    self._working_host = self._client._address.hostname
                 last_exception = self._handle_exception(exception)
                 self._client._backoff(
                     retried_times=retried_times,

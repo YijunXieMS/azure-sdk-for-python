@@ -132,14 +132,12 @@ class EventHubProducerClient(ClientBase):
 
     def _create_producer(self, partition_id=None, send_timeout=None):
         # type: (Optional[str], Optional[Union[int, float]]) -> EventHubProducer
-        target = "amqps://{}{}".format(self._address.hostname, self._address.path)
         send_timeout = (
             self._config.send_timeout if send_timeout is None else send_timeout
         )
 
         handler = EventHubProducer(
             self,
-            target,
             partition=partition_id,
             send_timeout=send_timeout,
             idle_timeout=self._idle_timeout,

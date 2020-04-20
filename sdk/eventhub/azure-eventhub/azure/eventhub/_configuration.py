@@ -26,3 +26,4 @@ class Configuration(object):  # pylint:disable=too-many-instance-attributes
         self.max_batch_size = kwargs.get("max_batch_size", self.prefetch)  # type: int
         self.receive_timeout = kwargs.get("receive_timeout", 0)  # type: int
         self.send_timeout = kwargs.get("send_timeout", 60)  # type: int
+        self.enable_redirect = kwargs.get("enable_redirect", False)  # type: bool
