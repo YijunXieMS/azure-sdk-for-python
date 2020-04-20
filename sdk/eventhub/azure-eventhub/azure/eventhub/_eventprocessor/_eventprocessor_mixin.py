@@ -85,7 +85,6 @@ class EventProcessorMixin(object):
     ):
         # type: (...) -> Union[EventHubConsumer, EventHubConsumerAsync]
         consumer = self._eventhub_client._create_consumer(  # type: ignore  # pylint: disable=protected-access
-            self._consumer_group,
             partition_id,
             initial_event_position,
             on_event_received,  # type: ignore
